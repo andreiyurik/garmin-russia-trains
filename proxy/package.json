@@ -1,11 +1,16 @@
 {
   "name": "elektrichki-proxy",
   "private": true,
-  "description": "Yandex Cloud Function: compact Moscow suburban schedule for the Garmin widget",
-  "engines": { "node": ">=22" },
+  "description": "Cloudflare Worker: compact Moscow suburban schedule for the Garmin widget",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test",
     "stations": "node scripts/build-stations.mjs",
     "deploy": "./deploy.sh"
+  },
+  "devDependencies": {
+    "wrangler": "^4.150.0"
   }
 }

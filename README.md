@@ -81,13 +81,13 @@ Store нет ни одного приложения с расписанием э
 ## Как это устроено
 
 ```
-[часы] ←Bluetooth→ [Garmin Connect на телефоне] → [Yandex Cloud Function] → [API Яндекс.Расписаний]
+[часы] ←Bluetooth→ [Garmin Connect на телефоне] → [Cloudflare Worker] → [API Яндекс.Расписаний]
 ```
 
 - **Часы** (`watch/`, Monkey C) — виджет с глансом. Фоновый сервис раз в час
   докачивает недостающие дни в `Application.Storage`; гланс и экран только
   читают сохранённое и не ходят в сеть.
-- **Прокси** (`proxy/`, Node.js 22 в Yandex Cloud Functions) находит станцию по
+- **Прокси** (`proxy/`, Cloudflare Workers) находит станцию по
   названию, забирает у Яндекса оба направления за день и отдаёт часам 1–2 КБ:
   каждый поезд — одно число. Так плотное расписание МЦД помещается в 32 КБ
   памяти гланса и быстро идёт по Bluetooth (400–800 байт/с по документации Garmin).
@@ -160,13 +160,13 @@ connectiq && monkeydo bin/app.prg fenix6
 ```sh
 cd proxy
 YANDEX_API_KEY=… npm run stations   # пересобрать src/stations.json
-yc init                             # один раз
-npm run deploy                      # создаёт публичную функцию и печатает её URL
+npx wrangler login                  # один раз
+npm run deploy                      # собирает станции, кладёт секрет, деплоит воркер
 ```
 
 Ключ API — на [developer.tech.yandex.ru](https://developer.tech.yandex.ru)
 («API Яндекс.Расписаний»); скрипт берёт его из `~/.config/mcd-garmin/yandex_key`.
-URL функции задаётся свойством `ProxyUrl` в `watch/resources/settings/properties.xml`.
+URL воркера задаётся свойством `ProxyUrl` в `watch/resources/settings/properties.xml`.
 Иконка: `watch/art/launcher_icon.svg`, размеры под устройства —
 `watch/art/build-icons.sh`.
 

@@ -1,12 +1,11 @@
-// Yandex Cloud Function between the watch and Yandex Rasp.
-// Entry point: index.handler, runtime nodejs22.
-// Docs: https://yandex.cloud/ru/docs/functions/lang/nodejs/handler
+// Request logic between the watch and Yandex Rasp, shared by the Cloudflare
+// Worker entry point (worker.js).
 //
-//   GET <function-url>?a=<station>&b=<station>&date=YYYY-MM-DD
+//   GET <worker-url>?a=<station>&b=<station>&date=YYYY-MM-DD
 //     -> {"v":3,"date":"…","a":"Одинцово","b":"Беговая",
 //         "ab":[packedTrain,…],"ba":[…],"s":["","Беговая","2",…]}   (see compact.js)
 //     404 {"error":"station","which":"a"|"b","q":"…"} when a name is not found
-//   GET <function-url>?q=<text>
+//   GET <worker-url>?q=<text>
 //     -> {"stations":[{code,title,direction},…]}  (check what a name resolves to)
 const { compactDay } = require("./compact.js");
 const { resolveStation, searchStations } = require("./stations.js");
@@ -17,15 +16,9 @@ const MAX_DAYS_AHEAD = 30;
 const TTL_MS = 6 * 60 * 60 * 1000;
 const CACHE_MAX = 500;
 
-// A function instance is reused between calls and handles one call at a time
-// by default (concurrency docs), so a module-level Map is a safe warm cache.
+// A Worker isolate is reused between requests, so a module-level Map is a
+// best-effort warm cache (it may be dropped at any time; that only costs a refetch).
 const cache = new Map();
-
-module.exports.handler = async function (event) {
-  return handleRequest(event.queryStringParameters ?? {}, {
-    apiKey: process.env.YANDEX_API_KEY,
-  });
-};
 
 async function handleRequest(params, { apiKey, fetchImpl = fetch, now = Date.now() }) {
   if (params.q !== undefined) {
