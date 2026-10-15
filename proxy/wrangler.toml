@@ -1,6 +1,8 @@
 name = "elektrichki-proxy"
 main = "src/worker.js"
 compatibility_date = "2026-10-01"
+workers_dev = true
+preview_urls = false
 
 # Run close to the Yandex API instead of close to the caller: it makes
 # 2-4 sequential upstream requests per call.
