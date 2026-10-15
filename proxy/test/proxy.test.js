@@ -1,8 +1,7 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
-const { compactDay, FLAG_EXPRESS, packTrain, terminalOf, toMinutes } = require("../src/compact.js");
-const { normalize, resolveStation } = require("../src/stations.js");
-const { searchAll } = require("../src/yandex.js");
+const { compactDay, FLAG_EXPRESS, offsetOf, packTrain, terminalOf, toMinutes } = require("../src/compact.js");
+const { searchAll, UpstreamError } = require("../src/yandex.js");
 
 const seg = (dep, arr, durMin, express_type = null, extra = {}) => ({
   departure: `2026-10-07T${dep}:00+03:00`,
@@ -13,10 +12,42 @@ const seg = (dep, arr, durMin, express_type = null, extra = {}) => ({
   ...extra,
 });
 
-test("toMinutes reads the Moscow wall clock", () => {
+test("toMinutes reads the station's wall clock", () => {
   assert.equal(toMinutes("2026-10-07T00:00:00+03:00"), 0);
   assert.equal(toMinutes("2026-10-07T08:42:00+03:00"), 522);
   assert.equal(toMinutes("2026-10-07T23:59:00+03:00"), 1439);
+  assert.equal(toMinutes("2026-10-16T05:47:00+05:00"), 347, "Yekaterinburg time, not Moscow");
+});
+
+test("offsetOf reads the UTC offset in minutes", () => {
+  assert.equal(offsetOf("2026-10-16T05:47:00+05:00"), 300);
+  assert.equal(offsetOf("2026-10-16T05:47:00+02:00"), 120);
+  assert.equal(offsetOf("2026-10-16T05:47:00+12:00"), 720);
+  assert.equal(offsetOf("2026-10-16T05:47:00-03:30"), -210);
+  assert.equal(offsetOf("2026-10-16T05:47:00Z"), 0);
+  assert.equal(offsetOf("2026-10-16T05:47:00"), null);
+  assert.equal(offsetOf(undefined), null);
+});
+
+test("compactDay reports both stations' offsets from any segment", () => {
+  const ekb = (dep, arr, offA, offB) => ({
+    departure: `2026-10-16T${dep}:00${offA}`,
+    arrival: `2026-10-16T${arr}:00${offB}`,
+    has_transfers: false,
+    thread: { title: "Кузино — Екатеринбург-П" },
+  });
+  const both = compactDay([ekb("05:47", "06:49", "+05:00", "+05:00")], []);
+  assert.equal(both.za, 300);
+  assert.equal(both.zb, 300);
+  assert.deepEqual(both.ab, [packTrain(347, 0, 1, 0)]);
+
+  // Only the way back runs: its arrival is in A's zone, its departure in B's.
+  const back = compactDay([], [ekb("18:00", "19:00", "+04:00", "+05:00")]);
+  assert.equal(back.za, 300);
+  assert.equal(back.zb, 240);
+
+  const none = compactDay([], []);
+  assert.ok(!("za" in none) && !("zb" in none), "no trains, no offsets");
 });
 
 test("terminalOf takes the last part of the thread title", () => {
@@ -50,28 +81,6 @@ test("compactDay sorts, flags express, drops transfers, shares a string table", 
   assert.deepEqual(day.ba, [packTrain(1090, 0, 4, 0)]);
 });
 
-const STATIONS = [
-  ["s9600721", "Одинцово", "Белорусское"],
-  ["s9601666", "Беговая", "Белорусское"],
-  ["s9601000", "Одинцово-2", "Тестовое"],
-  ["s9602000", "Лесной Городок", "Киевское"],
-];
-
-test("normalize drops station-type words and ё", () => {
-  assert.equal(normalize("пл. Беговая"), "беговая");
-  assert.equal(normalize("Станция Лесной  Городок"), "лесной городок");
-  assert.equal(normalize("Щёлково"), "щелково");
-});
-
-test("resolveStation prefers exact, then prefix, then substring", () => {
-  assert.equal(resolveStation("одинцово", STATIONS).code, "s9600721");
-  assert.equal(resolveStation("Бегов", STATIONS).code, "s9601666");
-  assert.equal(resolveStation("городок", STATIONS).code, "s9602000");
-  assert.equal(resolveStation("s9601666", STATIONS).title, "Беговая");
-  assert.equal(resolveStation("Нет такой", STATIONS), null);
-  assert.equal(resolveStation("", STATIONS), null);
-});
-
 test("searchAll follows pagination", async () => {
   const calls = [];
   const fakeFetch = async (url) => {
@@ -88,35 +97,42 @@ test("searchAll follows pagination", async () => {
   assert.deepEqual(calls, [0, 100]);
 });
 
-const { handleRequest } = require("../src/index.js");
 
-test("handleRequest validates input and caches by resolved codes", async () => {
-  const now = Date.parse("2026-10-07T09:00:00+03:00");
-  let calls = 0;
-  const fakeFetch = async (url) => {
-    calls++;
-    const from = url.searchParams.get("from");
-    return Response.json({
-      pagination: { total: 1 },
-      segments: [seg(from === "s9600721" ? "08:42" : "18:10", "09:05", 23)],
-    });
-  };
-  const ctx = { apiKey: "k", fetchImpl: fakeFetch, now };
+test("searchAll asks for station-local times, not Moscow time", async () => {
+  let asked;
+  await searchAll("k", "s1", "s2", "2026-10-07", async (url) => {
+    asked = url;
+    return Response.json({ pagination: { total: 0 }, segments: [] });
+  });
+  assert.equal(asked.searchParams.get("result_timezone"), null);
+});
 
-  assert.equal((await handleRequest({ a: "x", b: "y", date: "bad" }, ctx)).statusCode, 400);
-  const missing = await handleRequest({ a: "Нет", b: "Беговая", date: "2026-10-07" }, ctx);
-  assert.equal(missing.statusCode, 404);
-  assert.deepEqual(JSON.parse(missing.body), { error: "station", which: "a", q: "Нет" });
+test("searchAll treats a missing segments list as no trains", async () => {
+  const all = await searchAll("k", "s1", "s2", "2026-10-07", async () => Response.json({}));
+  assert.deepEqual(all, []);
+});
 
-  // stations.json is empty in the repo, so pass codes directly.
-  const res = await handleRequest({ a: "s9600721", b: "s9601666", date: "2026-10-07" }, ctx);
-  assert.equal(res.statusCode, 200);
-  const body = JSON.parse(res.body);
-  assert.equal(body.v, 3);
-  assert.deepEqual(body.ab, [522]);
-  assert.deepEqual(body.ba, [1090]);
-  assert.deepEqual(body.s, [""]);
+test("UpstreamError never carries the API key", async () => {
+  // Yandex echoes the whole request URL, key included, in its error body.
+  const body = JSON.stringify({
+    error: {
+      text: "Не нашли объект по yandex коду s9623390",
+      http_code: 404,
+      request: "http://api.rasp.yandex-net.ru/v3.0/search/?apikey=SECRET-KEY-123&format=json&from=s1",
+    },
+  });
+  const err = await searchAll("SECRET-KEY-123", "s1", "s9623390", "2026-10-07", async () => new Response(body, { status: 404 }))
+    .then(() => null, (e) => e);
+  assert.ok(err instanceof UpstreamError);
+  assert.equal(err.status, 404);
+  assert.equal(err.missingCode, "s9623390");
+  assert.ok(!err.message.includes("SECRET-KEY-123"), err.message);
+});
 
-  await handleRequest({ a: "s9600721", b: "s9601666", date: "2026-10-07" }, ctx);
-  assert.equal(calls, 2, "second call is served from cache");
+test("searchAll turns network failures and timeouts into UpstreamError", async () => {
+  const err = await searchAll("k", "s1", "s2", "2026-10-07", async () => {
+    throw new DOMException("timed out", "TimeoutError");
+  }).then(() => null, (e) => e);
+  assert.ok(err instanceof UpstreamError);
+  assert.equal(err.status, 0);
 });

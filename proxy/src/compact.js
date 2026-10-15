@@ -17,8 +17,8 @@ const FLAG_AEROEXPRESS = 2;
 const MAX_STRINGS = 256; // 8-bit indexes
 
 // "2026-10-07T08:42:00+03:00" -> 522 (minutes since local midnight).
-// Times are requested with result_timezone=Europe/Moscow, so the wall clock in
-// the string is already Moscow time.
+// Yandex gives each time in its station's own zone, so this is the wall clock
+// of that station, as on its departure board.
 function toMinutes(iso) {
   const hh = Number(iso.slice(11, 13));
   const mm = Number(iso.slice(14, 16));
@@ -26,6 +26,15 @@ function toMinutes(iso) {
     throw new Error(`Bad time: ${iso}`);
   }
   return hh * 60 + mm;
+}
+
+// "…+05:00" -> 300: minutes east of UTC, or null without an offset.
+function offsetOf(iso) {
+  const m = /(?:([+-])(\d{2}):(\d{2})|Z)$/.exec(String(iso ?? ""));
+  if (!m) return null;
+  if (!m[1]) return 0;
+  const minutes = Number(m[2]) * 60 + Number(m[3]);
+  return m[1] === "-" ? -minutes : minutes;
 }
 
 function flagsOf(thread) {
@@ -77,12 +86,22 @@ function compactSegments(segments, table) {
     .map((t) => t.packed);
 }
 
+// UTC offsets of both stations (za, zb), so the watch can tell the time at the
+// station: A -> B segments depart in A's zone and arrive in B's, and the way
+// back the other way round. Omitted when no segment carries them.
+function zonesOf(abSegments, baSegments) {
+  const first = (list) => list.find((x) => x !== null) ?? null;
+  const za = first([...abSegments.map((s) => offsetOf(s.departure)), ...baSegments.map((s) => offsetOf(s.arrival))]);
+  const zb = first([...baSegments.map((s) => offsetOf(s.departure)), ...abSegments.map((s) => offsetOf(s.arrival))]);
+  return { ...(za !== null && { za }), ...(zb !== null && { zb }) };
+}
+
 // Both directions of a day with their shared string table.
 function compactDay(abSegments, baSegments) {
   const table = new StringTable();
   const ab = compactSegments(abSegments, table);
   const ba = compactSegments(baSegments, table);
-  return { ab, ba, s: table.list };
+  return { ab, ba, s: table.list, ...zonesOf(abSegments, baSegments) };
 }
 
-module.exports = { FLAG_EXPRESS, FLAG_AEROEXPRESS, toMinutes, flagsOf, terminalOf, packTrain, compactDay };
+module.exports = { FLAG_EXPRESS, FLAG_AEROEXPRESS, toMinutes, offsetOf, flagsOf, terminalOf, packTrain, compactDay };
