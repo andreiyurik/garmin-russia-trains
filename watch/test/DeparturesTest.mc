@@ -169,14 +169,31 @@ function testShorterTitles(logger as Logger) as Boolean {
 }
 
 (:test)
-function testForScreenSkipsMissedTrains(logger as Logger) as Boolean {
-    var trains = [[595, 0, "", ""], [600, 0, "", ""], [605, 0, "", ""], [620, 0, "", ""], [630, 0, "", ""]] as Array<Array>;
-    var shown = Departures.forScreen(trains, 590, 12, 3);
-    var none = Departures.forScreen(trains, 625, 10, 3);
-    return check(logger, shown.size() == 3, "hero and two more")
-        && check(logger, (shown[0][Departures.DEP] as Number) == 605, "first catchable leads")
-        && check(logger, (shown[2][Departures.DEP] as Number) == 630, "then the next ones")
-        && check(logger, none.size() == 0, "nothing catchable: empty");
+function testUpcomingStartsAfterTheWalk(logger as Logger) as Boolean {
+    resetState();
+    // A train every minute from 09:50: with a 60 min walk all of the first
+    // hour is missed, the list must still be full.
+    var dense = [] as Array<Number>;
+    for (var m = 590; m < 590 + 90; m++) {
+        dense.add(m);
+    }
+    dense.add(1430);
+    Schedule.save(Schedule.dateString(0), dayWithTrains(dense), NOW_SECONDS);
+    Schedule.save(Schedule.dateString(1), dayWithTrains([10, 30]), NOW_SECONDS);
+    var walk = 60;
+    var shown = Departures.upcoming(true, 3, 590 + walk);
+    var ok = check(logger, shown != null && shown.size() == 3, "three catchable trains");
+    ok = check(logger, ((shown as Array<Array>)[0][Departures.DEP] as Number) == 650, "first one after the walk") && ok;
+
+    // Late evening: the walk ends after midnight, so tomorrow starts there too.
+    var late = Departures.upcoming(true, 2, 1430 + 20);
+    ok = check(logger, late != null && late.size() == 2, "two from tomorrow") && ok;
+    ok = check(logger, ((late as Array<Array>)[0][Departures.DEP] as Number) == 10 + 24 * 60, "tomorrow 00:10") && ok;
+
+    var later = Departures.upcoming(true, 2, 24 * 60 + 20);
+    ok = check(logger, later != null && later.size() == 1
+        && ((later as Array<Array>)[0][Departures.DEP] as Number) == 30 + 24 * 60, "tomorrow from 00:20") && ok;
+    return ok;
 }
 
 (:test)

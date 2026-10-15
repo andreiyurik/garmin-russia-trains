@@ -73,25 +73,28 @@ module Departures {
         return toWork ? [a, b] : [b, a];
     }
 
-    //! Up to `count` trains departing at or after `now` (minutes since
-    //! midnight), as [departureMinute, flags, terminal, platform].
+    //! Up to `count` trains departing at or after `from` (minutes since
+    //! today's midnight; past 1440 when it is tomorrow, e.g. now + a walk
+    //! that ends after midnight), as [departureMinute, flags, terminal, platform].
+    //! Asking from now + walk leaves out the trains the user cannot catch.
     //! departureMinute counts from today's midnight; tomorrow's trains get
     //! +1440 so the list continues past the last train of the day.
     //! Returns null when no schedule is cached for today.
-    function upcoming(toWork as Boolean, count as Number, now as Number) as Array<Array>? {
+    function upcoming(toWork as Boolean, count as Number, from as Number) as Array<Array>? {
         var date = Schedule.dateFor(0, toWork);
         var today = Schedule.load(date);
         if (today == null) {
             return null;
         }
         var result = [] as Array<Array>;
-        collect(today, Schedule.trains(date, today, toWork), now, 0, count, result);
+        collect(today, Schedule.trains(date, today, toWork), from, 0, count, result);
         today = null; // the glance has 32 KB: never hold two days at once
         if (result.size() < count) {
             date = Schedule.dateFor(1, toWork);
             var tomorrow = Schedule.load(date);
             if (tomorrow != null) {
-                collect(tomorrow, Schedule.trains(date, tomorrow, toWork), 0, 24 * 60, count, result);
+                collect(tomorrow, Schedule.trains(date, tomorrow, toWork), from > 24 * 60 ? from - 24 * 60 : 0,
+                    24 * 60, count, result);
             }
         }
         return result;
@@ -121,17 +124,6 @@ module Departures {
     //! With walk = 0 this is simply minutes to departure.
     function leaveIn(dep as Number, now as Number, walk as Number) as Number {
         return dep - walk - now;
-    }
-
-    //! The trains worth showing: the first one the user can still catch and
-    //! the ones after it, at most `count`. Missed trains are left out.
-    function forScreen(trains as Array<Array>, now as Number, walk as Number, count as Number) as Array<Array> {
-        var first = firstCatchable(trains, now, walk);
-        if (first < 0) {
-            return [] as Array<Array>;
-        }
-        var end = first + count < trains.size() ? first + count : trains.size();
-        return trains.slice(first, end);
     }
 
     function urgency(leave as Number) as Number {
