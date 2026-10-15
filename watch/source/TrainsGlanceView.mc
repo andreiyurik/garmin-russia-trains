@@ -53,7 +53,7 @@ class TrainsGlanceView extends WatchUi.GlanceView {
     }
 
     //! [text, color, ...] for Draw.pieces: "через 3 мин · 15:05, далее 15:11",
-    //! shortened from the end of the sentence when the glance is narrow.
+    //! shortened when the glance is narrow.
     private function secondLine(dc as Dc, trains as Array<Array>?, now as Number, walk as Number) as Array {
         var gray = Graphics.COLOR_LT_GRAY;
         if (trains == null || trains.size() == 0) {
@@ -81,12 +81,15 @@ class TrainsGlanceView extends WatchUi.GlanceView {
                 + Departures.hhmm(trains[1][Departures.DEP] as Number), gray] as Array<Object?>;
         }
 
-        // Longest first; the minutes always stay. (addAll changes the array
-        // it is called on, so every option is built from fresh copies.)
+        // Longest first: "then …" goes first, then the time, then the caption
+        // ("выход через 3 мин" says more than "3 мин · 08:28"); the minutes
+        // always stay. (addAll changes the array it is called on, so every
+        // option is built from fresh copies.)
         var shortest = [minutes, color] as Array<Object?>;
-        var noCaption = shortest.slice(0, null).addAll(time);
-        var full = caption.slice(0, null).addAll(shortest).addAll(time);
-        var options = [full.slice(0, null).addAll(then), full, noCaption, shortest] as Array<Array>;
+        var noTime = caption.slice(0, null).addAll(shortest);
+        var full = noTime.slice(0, null).addAll(time);
+        var options = [full.slice(0, null).addAll(then), full, noTime, shortest.slice(0, null).addAll(time), shortest]
+            as Array<Array>;
         for (var i = 0; i < options.size() - 1; i++) {
             if (Draw.piecesWidth(dc, Graphics.FONT_GLANCE, options[i]) <= usableWidth(dc)) {
                 return options[i];
