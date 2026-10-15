@@ -8,3 +8,10 @@ preview_urls = false
 # 2-4 sequential upstream requests per call.
 [placement]
 host = "api.rasp.yandex-net.ru:443"
+
+# Schedule cache shared by all isolates (the Cache API does not work on
+# *.workers.dev). Free plan: 100k reads and 1k writes a day; one write per
+# route and day fetched from Yandex. See src/index.js.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "b10fe131292847d49f5bc56f67b20baa"

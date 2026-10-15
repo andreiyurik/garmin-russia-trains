@@ -1,7 +1,7 @@
 {
   "name": "elektrichki-proxy",
   "private": true,
-  "description": "Cloudflare Worker: compact Moscow suburban schedule for the Garmin widget",
+  "description": "Cloudflare Worker: compact suburban schedule for the Garmin widget (all of Russia)",
   "engines": {
     "node": ">=22"
   },
