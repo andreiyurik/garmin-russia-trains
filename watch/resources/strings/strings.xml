@@ -16,15 +16,18 @@
     <string id="NoStations" scope="glance">Set stations in Garmin Connect</string>
     <string id="NoTrains" scope="glance">No trains</string>
     <string id="LeaveIn" scope="glance">leave in</string>
+    <string id="In" scope="glance">in</string>
+    <string id="LeaveNow" scope="glance">Leave now!</string>
+    <string id="Departing" scope="glance">Departing</string>
+    <string id="Then" scope="glance">then</string>
     <string id="NotFound" scope="glance">Station not found:</string>
     <string id="NoPhone" scope="glance">No connection to phone</string>
     <string id="Ambiguous" scope="glance">Specify the station:</string>
     <string id="Limit" scope="glance">Request limit, try later</string>
     <string id="ServerError" scope="glance">Service unavailable</string>
     <string id="Loading">Loading…</string>
-    <string id="Scheduled">scheduled</string>
-    <string id="UntilLeave">min to leave</string>
-    <string id="Missed">missed</string>
+    <string id="UpdatedAt">updated</string>
+    <string id="StationTime">time</string>
     <string id="Platform">pl.</string>
     <string id="Aeroexpress">AERO</string>
     <string id="Express">EXP</string>

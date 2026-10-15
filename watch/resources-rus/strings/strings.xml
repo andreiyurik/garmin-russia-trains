@@ -15,16 +15,19 @@
     <string id="NoData" scope="glance">Расписание не загружено</string>
     <string id="NoStations" scope="glance">Укажите станции в Garmin Connect</string>
     <string id="NoTrains" scope="glance">Поездов нет</string>
-    <string id="LeaveIn" scope="glance">выход</string>
+    <string id="LeaveIn" scope="glance">выход через</string>
+    <string id="In" scope="glance">через</string>
+    <string id="LeaveNow" scope="glance">Выходите!</string>
+    <string id="Departing" scope="glance">Отправляется</string>
+    <string id="Then" scope="glance">далее</string>
     <string id="NotFound" scope="glance">Станция не найдена:</string>
     <string id="NoPhone" scope="glance">Нет связи с телефоном</string>
     <string id="Ambiguous" scope="glance">Уточните станцию:</string>
     <string id="Limit" scope="glance">Лимит запросов, позже</string>
     <string id="ServerError" scope="glance">Сервис недоступен</string>
     <string id="Loading">Загрузка…</string>
-    <string id="Scheduled">по расписанию</string>
-    <string id="UntilLeave">мин до выхода</string>
-    <string id="Missed">не успеть</string>
+    <string id="UpdatedAt">обновлено</string>
+    <string id="StationTime">время</string>
     <string id="Platform">пл.</string>
     <string id="Aeroexpress">АЭРО</string>
     <string id="Express">ЭКС</string>
