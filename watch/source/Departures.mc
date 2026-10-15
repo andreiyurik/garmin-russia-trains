@@ -15,6 +15,14 @@ module Departures {
         PLATFORM
     }
 
+    // How soon the user has to go, for the color of the big number.
+    enum {
+        CALM,
+        HURRY, // HURRY_MINUTES or less
+        NOW    // leave (or the train leaves) this minute
+    }
+    const HURRY_MINUTES = 2;
+
     //! Minutes since midnight at the departure station of a direction: the
     //! schedule is in station time, also when the watch is in another zone.
     function nowMinutes(toWork as Boolean) as Number {
@@ -113,6 +121,57 @@ module Departures {
     //! With walk = 0 this is simply minutes to departure.
     function leaveIn(dep as Number, now as Number, walk as Number) as Number {
         return dep - walk - now;
+    }
+
+    //! The trains worth showing: the first one the user can still catch and
+    //! the ones after it, at most `count`. Missed trains are left out.
+    function forScreen(trains as Array<Array>, now as Number, walk as Number, count as Number) as Array<Array> {
+        var first = firstCatchable(trains, now, walk);
+        if (first < 0) {
+            return [] as Array<Array>;
+        }
+        var end = first + count < trains.size() ? first + count : trains.size();
+        return trains.slice(first, end);
+    }
+
+    function urgency(leave as Number) as Number {
+        if (leave <= 0) {
+            return NOW;
+        }
+        return leave <= HURRY_MINUTES ? HURRY : CALM;
+    }
+
+    //! "2" -> "пл. 2"; Yandex's own wording ("2 путь") is kept, without the
+    //! hedge "обычно" ("usually"), which only costs width on a watch.
+    function platformLabel(platform as String, label as String) as String {
+        var usual = "обычно ";
+        if (platform.find(usual) == 0) {
+            platform = platform.substring(usual.length(), platform.length()) as String;
+        }
+        var digits = platform.length() > 0;
+        var chars = platform.toCharArray();
+        for (var i = 0; i < chars.size() && digits; i++) {
+            digits = chars[i] >= '0' && chars[i] <= '9';
+        }
+        return digits ? label + " " + platform : platform;
+    }
+
+    //! A title and shorter forms of it to try when it does not fit:
+    //! "Москва (Ярославский вокзал)" -> also "Ярославский вокзал", "Ярославский вкз.".
+    function shorterTitles(title as String) as Array<String> {
+        var forms = [title] as Array<String>;
+        var open = title.find(" (");
+        var last = title.length() - 1;
+        if (open == null || !")".equals(title.substring(last, last + 1))) {
+            return forms;
+        }
+        var inner = title.substring(open + 2, last) as String;
+        forms.add(inner);
+        var station = inner.find("вокзал");
+        if (station != null) {
+            forms.add(inner.substring(0, station) + "вкз." + inner.substring(station + 6, inner.length()));
+        }
+        return forms;
     }
 
     //! Index of the first train the user can still catch, or -1.

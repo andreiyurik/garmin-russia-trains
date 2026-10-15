@@ -154,3 +154,42 @@ function testCollectSurvivesMismatchedStrings(logger as Logger) as Boolean {
     return check(logger, out.size() == 1 && "".equals(out[0][Departures.TERMINAL] as String)
         && "".equals(out[0][Departures.PLATFORM] as String), "unknown indexes read as empty");
 }
+
+(:test)
+function testShorterTitles(logger as Logger) as Boolean {
+    var a = Departures.shorterTitles("Москва (Ярославский вокзал)");
+    var b = Departures.shorterTitles("Одинцово");
+    var c = Departures.shorterTitles("Санкт-Петербург (Финляндский вокзал)");
+    return check(logger, a.size() == 3, "three forms of a terminal name")
+        && check(logger, "Москва (Ярославский вокзал)".equals(a[0]), "full first")
+        && check(logger, "Ярославский вокзал".equals(a[1]), "the station inside the city")
+        && check(logger, "Ярославский вкз.".equals(a[2]), "abbreviated")
+        && check(logger, b.size() == 1 && "Одинцово".equals(b[0]), "short names stay")
+        && check(logger, "Финляндский вкз.".equals(c[2]), "Petersburg too");
+}
+
+(:test)
+function testForScreenSkipsMissedTrains(logger as Logger) as Boolean {
+    var trains = [[595, 0, "", ""], [600, 0, "", ""], [605, 0, "", ""], [620, 0, "", ""], [630, 0, "", ""]] as Array<Array>;
+    var shown = Departures.forScreen(trains, 590, 12, 3);
+    var none = Departures.forScreen(trains, 625, 10, 3);
+    return check(logger, shown.size() == 3, "hero and two more")
+        && check(logger, (shown[0][Departures.DEP] as Number) == 605, "first catchable leads")
+        && check(logger, (shown[2][Departures.DEP] as Number) == 630, "then the next ones")
+        && check(logger, none.size() == 0, "nothing catchable: empty");
+}
+
+(:test)
+function testUrgency(logger as Logger) as Boolean {
+    return check(logger, Departures.urgency(15) == Departures.CALM, "plenty of time")
+        && check(logger, Departures.urgency(2) == Departures.HURRY, "two minutes: hurry")
+        && check(logger, Departures.urgency(0) == Departures.NOW, "now");
+}
+
+(:test)
+function testPlatformLabel(logger as Logger) as Boolean {
+    return check(logger, Departures.platformLabel("2", "пл.").equals("пл. 2"), "bare number gets the label")
+        && check(logger, Departures.platformLabel("2 путь", "пл.").equals("2 путь"), "Yandex wording stays")
+        && check(logger, Departures.platformLabel("обычно 4 пл 3 путь", "пл.").equals("4 пл 3 путь"), "no 'обычно'")
+        && check(logger, Departures.platformLabel("", "пл.").equals(""), "none");
+}
