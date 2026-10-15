@@ -1,5 +1,6 @@
 import Toybox.Lang;
 import Toybox.System;
+import Toybox.Time;
 import Toybox.WatchUi;
 
 //! Picks the next trains from the cached schedule and describes problems.
@@ -14,9 +15,36 @@ module Departures {
         PLATFORM
     }
 
-    function nowMinutes() as Number {
-        var clock = System.getClockTime();
-        return clock.hour * 60 + clock.min;
+    //! Minutes since midnight at the departure station of a direction: the
+    //! schedule is in station time, also when the watch is in another zone.
+    function nowMinutes(toWork as Boolean) as Number {
+        return minutesAt(Time.now().value(), Schedule.utcOffset(toWork));
+    }
+
+    function minutesAt(epoch as Number, offsetSeconds as Number) as Number {
+        var day = 24 * 60 * 60;
+        return (((epoch + offsetSeconds) % day + day) % day) / 60;
+    }
+
+    //! Morning or evening by the clock at Home (SwitchHour), START flips it.
+    function direction(flipped as Boolean) as Boolean {
+        return towardWork(flipped, nowMinutes(true));
+    }
+
+    //! "UTC+5", "UTC-3:30", "UTC".
+    function zoneLabel(offsetSeconds as Number) as String {
+        if (offsetSeconds == 0) {
+            return "UTC";
+        }
+        var minutes = offsetSeconds.abs() / 60;
+        var text = "UTC" + (offsetSeconds > 0 ? "+" : "-") + minutes / 60;
+        return minutes % 60 == 0 ? text : text + ":" + (minutes % 60).format("%02d");
+    }
+
+    //! The station's zone when it differs from the watch's, else null.
+    function foreignZone(toWork as Boolean) as String? {
+        var offset = Schedule.utcOffset(toWork);
+        return offset == System.getClockTime().timeZoneOffset ? null : zoneLabel(offset);
     }
 
     //! true = home -> work. Automatic by SwitchHour, inverted by START.
@@ -43,25 +71,26 @@ module Departures {
     //! +1440 so the list continues past the last train of the day.
     //! Returns null when no schedule is cached for today.
     function upcoming(toWork as Boolean, count as Number, now as Number) as Array<Array>? {
-        var today = Schedule.load(Schedule.dateString(0));
+        var date = Schedule.dateFor(0, toWork);
+        var today = Schedule.load(date);
         if (today == null) {
             return null;
         }
         var result = [] as Array<Array>;
-        collect(today, toWork, now, 0, count, result);
+        collect(today, Schedule.trains(date, today, toWork), now, 0, count, result);
         today = null; // the glance has 32 KB: never hold two days at once
         if (result.size() < count) {
-            var tomorrow = Schedule.load(Schedule.dateString(1));
+            date = Schedule.dateFor(1, toWork);
+            var tomorrow = Schedule.load(date);
             if (tomorrow != null) {
-                collect(tomorrow, toWork, 0, 24 * 60, count, result);
+                collect(tomorrow, Schedule.trains(date, tomorrow, toWork), 0, 24 * 60, count, result);
             }
         }
         return result;
     }
 
-    function collect(day as Dictionary, toWork as Boolean, fromMinute as Number, shift as Number,
+    function collect(day as Dictionary, trains as Array<Number>, fromMinute as Number, shift as Number,
                      count as Number, out as Array<Array>) as Void {
-        var trains = day[toWork ? "ab" : "ba"] as Array<Number>;
         var strings = day["s"] as Array<String>;
         var hideExpress = Schedule.hideExpress();
         for (var i = 0; i < trains.size() && out.size() < count; i++) {
@@ -69,9 +98,15 @@ module Departures {
             var flags = Schedule.flagsOf(train);
             if (Schedule.departureOf(train) >= fromMinute && !(hideExpress && flags != 0)) {
                 out.add([Schedule.departureOf(train) + shift, flags,
-                         strings[Schedule.terminalOf(train)], strings[Schedule.platformOf(train)]]);
+                         text(strings, Schedule.terminalOf(train)), text(strings, Schedule.platformOf(train))]);
             }
         }
+    }
+
+    //! A string by index; "" if the trains and strings were saved by different
+    //! fetches (the background can be stopped between writes).
+    function text(strings as Array<String>, index as Number) as String {
+        return index < strings.size() ? strings[index] : "";
     }
 
     //! Minutes until the user should leave for this train (negative = missed).
@@ -91,7 +126,8 @@ module Departures {
     }
 
     //! The last failed fetch as [title, detail], or null.
-    //! ["Станция не найдена:", "Одинцвоо"] or ["Нет связи с телефоном", "-104"].
+    //! ["Станция не найдена:", "Одинцвоо"], ["Уточните станцию:", "Перово, Москва?"]
+    //! or ["Нет связи с телефоном", "-104"].
     function error() as [String, String]? {
         var err = Schedule.lastError();
         if (err == null) {
@@ -103,6 +139,10 @@ module Departures {
             title = $.Rez.Strings.NoPhone;
         } else if (kind == Schedule.ERROR_STATION) {
             title = $.Rez.Strings.NotFound;
+        } else if (kind == Schedule.ERROR_AMBIGUOUS) {
+            title = $.Rez.Strings.Ambiguous;
+        } else if (kind == Schedule.ERROR_LIMIT) {
+            title = $.Rez.Strings.Limit;
         }
         return [WatchUi.loadResource(title) as String, err["d"] as String];
     }

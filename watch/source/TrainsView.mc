@@ -12,8 +12,8 @@ import Toybox.WatchUi;
 //!   ▸ Лобня · пл. 2
 //!   08:51           13 мин
 //!   09:03           25 мин
-//!   мин до выхода · 05:12
-//! Minutes are "until you should leave" when WalkMinutes > 0, otherwise until
+//!   мин до выхода · 05:12      <- or "· UTC+5" when the station is in another zone
+//! Times are the station's (as on its departure board). Minutes are "until you should leave" when WalkMinutes > 0, otherwise until
 //! departure. Missed trains are gray. Light-on-dark and system fonts with
 //! numbers first, per the UX guidelines for MIP screens.
 class TrainsView extends WatchUi.View {
@@ -65,8 +65,8 @@ class TrainsView extends WatchUi.View {
         }
 
         // One clock reading per frame keeps every row consistent.
-        var now = Departures.nowMinutes();
-        var toWork = Departures.towardWork(_flipped, now);
+        var toWork = Departures.direction(_flipped);
+        var now = Departures.nowMinutes(toWork);
         var titles = Departures.titles(toWork);
         drawCentered(dc, cx, h * 13 / 100, Graphics.FONT_XTINY, titles[0], Graphics.COLOR_LT_GRAY);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
@@ -87,7 +87,7 @@ class TrainsView extends WatchUi.View {
         }
 
         if (trains != null || err == null || _status.length() > 0) {
-            drawCentered(dc, cx, h * 87 / 100, Graphics.FONT_XTINY, footer(err), Graphics.COLOR_LT_GRAY);
+            drawCentered(dc, cx, h * 87 / 100, Graphics.FONT_XTINY, footer(err, toWork), Graphics.COLOR_LT_GRAY);
         }
     }
 
@@ -165,8 +165,9 @@ class TrainsView extends WatchUi.View {
 
     //! Status of a running refresh, else the last error's title (the screen is
     //! narrow at the bottom), else what the minutes mean and when the schedule
-    //! was fetched.
-    private function footer(err as [String, String]?) as String {
+    //! was fetched, or, when the station is in another time zone than the
+    //! watch, that zone ("UTC+3"): the times on screen are the station's.
+    private function footer(err as [String, String]?, toWork as Boolean) as String {
         if (_status.length() > 0) {
             return _status;
         }
@@ -175,6 +176,10 @@ class TrainsView extends WatchUi.View {
         }
         var label = Schedule.walkMinutes() > 0 ? $.Rez.Strings.UntilLeave : $.Rez.Strings.Scheduled;
         var text = WatchUi.loadResource(label) as String;
+        var zone = Departures.foreignZone(toWork);
+        if (zone != null) {
+            return text + " · " + zone;
+        }
         var day = Schedule.load(Schedule.dateString(0));
         if (day != null) {
             var info = Gregorian.info(new Time.Moment(day["t"] as Number), Time.FORMAT_SHORT);

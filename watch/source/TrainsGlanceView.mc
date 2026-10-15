@@ -24,8 +24,8 @@ class TrainsGlanceView extends WatchUi.GlanceView {
             return;
         }
 
-        var now = Departures.nowMinutes();
-        var toWork = Departures.towardWork(false, now);
+        var toWork = Departures.direction(false);
+        var now = Departures.nowMinutes(toWork);
         var size = dc.getFontHeight(Graphics.FONT_GLANCE) / 3;
         Draw.arrow(dc, 0, h / 4, size);
         dc.drawText(size + size / 2 + 2, h / 4, Graphics.FONT_GLANCE, Departures.titles(toWork)[1],

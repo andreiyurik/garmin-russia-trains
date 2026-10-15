@@ -43,13 +43,28 @@ class Fetcher {
             code = Communications.INVALID_HTTP_BODY_IN_NETWORK_RESPONSE;
         }
         if (data instanceof Dictionary && "station".equals(data["error"] as Object?) && data["q"] instanceof String) {
-            Schedule.saveError(Schedule.ERROR_STATION, data["q"] as String);
+            if ("ambiguous".equals(data["reason"] as Object?)) {
+                Schedule.saveError(Schedule.ERROR_AMBIGUOUS, suggestion(data["q"] as String, data["options"] as Object?));
+            } else {
+                Schedule.saveError(Schedule.ERROR_STATION, data["q"] as String);
+            }
+        } else if (data instanceof Dictionary && "limit".equals(data["error"] as Object?)) {
+            Schedule.saveError(Schedule.ERROR_LIMIT, "");
         } else if (isConnectionError(code)) {
             Schedule.saveError(Schedule.ERROR_PHONE, code.toString());
         } else {
             Schedule.saveError(Schedule.ERROR_SERVER, code.toString());
         }
         return code;
+    }
+
+    //! What to type instead of an ambiguous name: the first of the proxy's
+    //! options as a question ("Перово, Москва?"), the name itself without them.
+    public static function suggestion(name as String, options as Object?) as String {
+        if (options instanceof Array && options.size() > 0 && options[0] instanceof String) {
+            return (options[0] as String) + "?";
+        }
+        return name;
     }
 
     //! Phone, Bluetooth or timeout problems (Communications error codes):
