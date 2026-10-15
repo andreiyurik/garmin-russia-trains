@@ -1,10 +1,10 @@
 <resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <settings>
         <setting propertyKey="@Properties.HomeStation" title="@Strings.HomeTitle" prompt="@Strings.StationPrompt">
-            <settingConfig type="alphaNumeric" maxLength="40" />
+            <settingConfig type="alphaNumeric" maxLength="60" />
         </setting>
         <setting propertyKey="@Properties.WorkStation" title="@Strings.WorkTitle" prompt="@Strings.StationPrompt">
-            <settingConfig type="alphaNumeric" maxLength="40" />
+            <settingConfig type="alphaNumeric" maxLength="60" />
         </setting>
         <setting propertyKey="@Properties.SwitchHour" title="@Strings.SwitchTitle" prompt="@Strings.SwitchPrompt">
             <settingConfig type="numeric" min="0" max="23" errorMessage="@Strings.SwitchError" />

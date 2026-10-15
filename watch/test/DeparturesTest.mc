@@ -1,6 +1,8 @@
 import Toybox.Application.Properties;
 import Toybox.Lang;
 import Toybox.Test;
+import Toybox.Time;
+import Toybox.Time.Gregorian;
 
 //! Departures: train selection, direction, "leave in" and formatting.
 
@@ -51,7 +53,7 @@ function testLeaveInAndFirstCatchable(logger as Logger) as Boolean {
 function testCollectResolvesStringsFromMinute(logger as Logger) as Boolean {
     resetState();
     var out = [] as Array<Array>;
-    Departures.collect(sampleDay(), true, 525, 0, 5, out);
+    Departures.collect(sampleDay(), sampleDay()["ab"] as Array<Number>, 525, 0, 5, out);
     if (!check(logger, out.size() == 1, "one train after 08:45")) {
         return false;
     }
@@ -66,7 +68,7 @@ function testCollectResolvesStringsFromMinute(logger as Logger) as Boolean {
 function testCollectBackDirectionShiftAndCount(logger as Logger) as Boolean {
     resetState();
     var out = [] as Array<Array>;
-    Departures.collect(sampleDay(), false, 0, 24 * 60, 1, out);
+    Departures.collect(sampleDay(), sampleDay()["ba"] as Array<Number>, 0, 24 * 60, 1, out);
     return check(logger, out.size() == 1, "count limits the result")
         && check(logger, (out[0][Departures.DEP] as Number) == 1090 + 24 * 60, "shifted by a day")
         && check(logger, "".equals(out[0][Departures.PLATFORM] as String), "missing platform is empty");
@@ -77,7 +79,7 @@ function testCollectHidesExpress(logger as Logger) as Boolean {
     resetState();
     Properties.setValue("HideExpress", true);
     var out = [] as Array<Array>;
-    Departures.collect(sampleDay(), true, 0, 0, 5, out);
+    Departures.collect(sampleDay(), sampleDay()["ab"] as Array<Number>, 0, 0, 5, out);
     return check(logger, out.size() == 1 && (out[0][Departures.DEP] as Number) == 522, "express skipped");
 }
 
@@ -109,4 +111,46 @@ function testUpcomingAfterLastTrainWithoutTomorrowIsEmpty(logger as Logger) as B
     Schedule.save(Schedule.dateString(0), dayWithTrains([600]), NOW_SECONDS);
     var trains = Departures.upcoming(true, 3, 23 * 60);
     return check(logger, trains != null && trains.size() == 0, "empty, not null");
+}
+
+(:test)
+function testMinutesAtUsesTheStationZone(logger as Logger) as Boolean {
+    // 00:47 UTC is 05:47 in Yekaterinburg and 03:47 in Moscow.
+    var epoch = Gregorian.moment({ :year => 2026, :month => 10, :day => 16, :hour => 0, :minute => 47 }).value();
+    return check(logger, Departures.minutesAt(epoch, 5 * 3600) == 5 * 60 + 47, "Yekaterinburg")
+        && check(logger, Departures.minutesAt(epoch, 3 * 3600) == 3 * 60 + 47, "Moscow")
+        && check(logger, Departures.minutesAt(epoch + 59, 3 * 3600) == 3 * 60 + 47, "seconds are dropped")
+        && check(logger, Departures.minutesAt(epoch, -2 * 3600) == 22 * 60 + 47, "west of UTC: day before");
+}
+
+(:test)
+function testDatesFollowTheStationZone(logger as Logger) as Boolean {
+    resetState();
+    var day = dayWithTrains([600]);
+    day["za"] = 12 * 60;   // Kamchatka
+    day["zb"] = 2 * 60;    // Kaliningrad: not a real trip, but far apart in time
+    Schedule.save(Schedule.dateString(0), day, NOW_SECONDS);
+    var now = Time.now().value();
+    var ok = check(logger, Schedule.dateString(0).equals(Schedule.dateAt(now, 12 * 3600, 0)), "storage days: zone of A");
+    ok = check(logger, Schedule.dateFor(1, false).equals(Schedule.dateAt(now, 2 * 3600, 1)), "way back: zone of B") && ok;
+
+    Schedule.save(Schedule.dateString(0), day, NOW_SECONDS);
+    ok = check(logger, Departures.upcoming(true, 3, 0) != null, "today found in the station's zone") && ok;
+    return ok;
+}
+
+(:test)
+function testZoneLabel(logger as Logger) as Boolean {
+    return check(logger, Departures.zoneLabel(5 * 3600).equals("UTC+5"), "+5")
+        && check(logger, Departures.zoneLabel(-(3 * 3600 + 1800)).equals("UTC-3:30"), "-3:30")
+        && check(logger, Departures.zoneLabel(0).equals("UTC"), "UTC");
+}
+
+(:test)
+function testCollectSurvivesMismatchedStrings(logger as Logger) as Boolean {
+    resetState();
+    var out = [] as Array<Array>;
+    Departures.collect(sampleDay(), [packTrain(600, 0, 200, 99)] as Array<Number>, 0, 0, 5, out);
+    return check(logger, out.size() == 1 && "".equals(out[0][Departures.TERMINAL] as String)
+        && "".equals(out[0][Departures.PLATFORM] as String), "unknown indexes read as empty");
 }

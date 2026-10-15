@@ -2,7 +2,7 @@
     <string id="AppName">Russian Trains</string>
     <string id="HomeTitle">Home station</string>
     <string id="WorkTitle">Work station</string>
-    <string id="StationPrompt">Station name, e.g. Odintsovo</string>
+    <string id="StationPrompt">Station name, e.g. Odintsovo. If there are several, add the city after a comma: Zavodskaya, Izhevsk</string>
     <string id="SwitchTitle">Go home after (hour)</string>
     <string id="SwitchPrompt">Before this hour the app shows trains from home, after it trains back home</string>
     <string id="SwitchError">Enter an hour from 0 to 23</string>
@@ -18,6 +18,8 @@
     <string id="LeaveIn" scope="glance">leave in</string>
     <string id="NotFound" scope="glance">Station not found:</string>
     <string id="NoPhone" scope="glance">No connection to phone</string>
+    <string id="Ambiguous" scope="glance">Specify the station:</string>
+    <string id="Limit" scope="glance">Request limit, try later</string>
     <string id="ServerError" scope="glance">Service unavailable</string>
     <string id="Loading">Loading…</string>
     <string id="Scheduled">scheduled</string>

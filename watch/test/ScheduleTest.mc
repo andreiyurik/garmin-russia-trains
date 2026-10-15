@@ -2,6 +2,7 @@ import Toybox.Application.Properties;
 import Toybox.Application.Storage;
 import Toybox.Communications;
 import Toybox.Lang;
+import Toybox.System;
 import Toybox.Test;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
@@ -189,4 +190,141 @@ function testIsConnectionError(logger as Logger) as Boolean {
 function expectError(logger as Logger, kind as Number, what as String) as Boolean {
     var err = Schedule.lastError();
     return check(logger, err != null && (err["k"] as Number) == kind, what + ": error kind " + kind);
+}
+
+(:test)
+function testIsValidChecksStationZones(logger as Logger) as Boolean {
+    var zoned = sampleDay();
+    zoned["za"] = 300;
+    zoned["zb"] = -210;
+    var text = sampleDay();
+    text["za"] = "+05:00";
+    var far = sampleDay();
+    far["zb"] = 24 * 60;
+    return check(logger, Schedule.isValid(zoned), "offsets in minutes")
+        && check(logger, !Schedule.isValid(text), "offset must be a number")
+        && check(logger, !Schedule.isValid(far), "offset out of range");
+}
+
+(:test)
+function testSaveRemembersStationZonesPerRoute(logger as Logger) as Boolean {
+    resetState();
+    var device = System.getClockTime().timeZoneOffset;
+    var ok = check(logger, Schedule.utcOffset(true) == device, "nothing known: device zone");
+
+    var day = sampleDay();
+    day["za"] = 300;
+    day["zb"] = 420;
+    Schedule.save(Schedule.dateString(0), day, NOW_SECONDS);
+    ok = check(logger, Schedule.utcOffset(true) == 300 * 60, "toward work: zone of A") && ok;
+    ok = check(logger, Schedule.utcOffset(false) == 420 * 60, "back home: zone of B") && ok;
+
+    // A day from an older proxy has no zones: the known ones stay.
+    Schedule.save(Schedule.dateString(1), sampleDay(), NOW_SECONDS);
+    ok = check(logger, Schedule.utcOffset(true) == 300 * 60, "kept after a day without zones") && ok;
+
+    Properties.setValue("WorkStation", "Лобня");
+    ok = check(logger, Schedule.utcOffset(true) == device, "other stations: device zone again") && ok;
+    return ok;
+}
+
+(:test)
+function testDateAtUsesTheStationZone(logger as Logger) as Boolean {
+    // 2026-10-15 20:30 UTC: already the 16th in Yekaterinburg (+5), still the 15th in Kaliningrad (+2).
+    var epoch = Gregorian.moment({ :year => 2026, :month => 10, :day => 15, :hour => 20, :minute => 30 }).value();
+    return check(logger, Schedule.dateAt(epoch, 5 * 3600, 0).equals("2026-10-16"), "Yekaterinburg")
+        && check(logger, Schedule.dateAt(epoch, 2 * 3600, 0).equals("2026-10-15"), "Kaliningrad")
+        && check(logger, Schedule.dateAt(epoch, 5 * 3600, 1).equals("2026-10-17"), "tomorrow")
+        && check(logger, Schedule.dateAt(epoch, 12 * 3600, -1).equals("2026-10-15"), "yesterday in Kamchatka");
+}
+
+(:test)
+function testHandleExplainsAmbiguousStationsAndLimits(logger as Logger) as Boolean {
+    resetState();
+    var date = Schedule.dateString(0);
+    Fetcher.handle(date, 404, {
+        "error" => "station", "which" => "b", "q" => "Перово", "reason" => "ambiguous",
+        "options" => ["Перово, Москва", "Перово, Краснодарский край"]
+    }, NOW_SECONDS);
+    var ok = expectError(logger, Schedule.ERROR_AMBIGUOUS, "ambiguous");
+    ok = check(logger, "Перово, Москва?".equals((Schedule.lastError() as Dictionary)["d"] as Object?),
+        "suggests what to type") && ok;
+
+    Fetcher.handle(date, 404, { "error" => "station", "q" => "Перово", "reason" => "ambiguous", "options" => [] },
+        NOW_SECONDS);
+    ok = check(logger, "Перово".equals((Schedule.lastError() as Dictionary)["d"] as Object?), "no options: the name") && ok;
+
+    Fetcher.handle(date, 503, { "error" => "limit" }, NOW_SECONDS);
+    ok = expectError(logger, Schedule.ERROR_LIMIT, "limit") && ok;
+
+    Fetcher.handle(date, 404, { "error" => "station", "q" => "Нет", "reason" => "notfound" }, NOW_SECONDS);
+    ok = expectError(logger, Schedule.ERROR_STATION, "not found") && ok;
+    return ok;
+}
+
+(:test)
+function testDenseDayFitsStorageAndGlanceMemory(logger as Logger) as Boolean {
+    resetState();
+    // The busiest real route (Мытищи - Ярославский вокзал, live, Oct 2026) has
+    // 264 + 272 trains and 21 strings; this is ~20% more trains and twice the strings.
+    var trains = [] as Array<Number>;
+    for (var i = 0; i < 330; i++) {
+        trains.add(packTrain(i * 1439 / 330, i % 3, i % 32 + 1, i % 15 + 33));
+    }
+    var strings = [""] as Array<String>;
+    for (var i = 1; i < 48; i++) {
+        strings.add(i <= 32 ? "Сергиев Посад " + i : (i - 32).toString());
+    }
+    var day = { "v" => 3, "a" => "Одинцово", "b" => "Беговая", "ab" => trains, "ba" => trains,
+                "s" => strings, "za" => 180, "zb" => 180 } as Dictionary;
+    var ok = check(logger, Schedule.isValid(day), "valid");
+    Schedule.save(Schedule.dateString(0), day, NOW_SECONDS);
+    day = null;
+    trains = null;
+    strings = null;
+
+    // What the glance holds: one day entry and one direction.
+    var date = Schedule.dateString(0);
+    var before = System.getSystemStats().usedMemory;
+    var loaded = Schedule.load(date);
+    var oneWay = loaded != null ? Schedule.trains(date, loaded, true) : null;
+    var used = System.getSystemStats().usedMemory - before;
+    logger.debug("dense day, one direction in memory: " + used + " bytes");
+    ok = check(logger, oneWay != null && oneWay.size() == 330, "saved and loaded") && ok;
+    // The glance has ~28 KB for code and data together, the code takes ~16 KB.
+    ok = check(logger, used < 6 * 1024, "under 6 KB: " + used) && ok;
+    loaded = null;
+    oneWay = null;
+    var next = Departures.upcoming(true, 6, 600);
+    ok = check(logger, next != null && next.size() == 6, "upcoming works") && ok;
+    return ok;
+}
+
+(:test)
+function testDaysAreStoredPerDirection(logger as Logger) as Boolean {
+    resetState();
+    var date = Schedule.dateString(0);
+    Schedule.save(date, sampleDay(), NOW_SECONDS);
+    var day = Schedule.load(date) as Dictionary;
+    var ok = check(logger, !day.hasKey("ab") && !day.hasKey("ba"), "day entry without trains");
+    ok = check(logger, Schedule.trains(date, day, true).size() == 2, "trains to work") && ok;
+    ok = check(logger, (Schedule.trains(date, day, false)[0] as Number) == packTrain(1090, 0, 2, 0), "trains back") && ok;
+
+    Schedule.prune();
+    Schedule.save(Schedule.dateString(-1), sampleDay(), NOW_SECONDS);
+    Schedule.prune();
+    ok = check(logger, Storage.getValue("d:" + Schedule.dateString(-1) + ":ab") == null, "prune drops the trains too") && ok;
+    return ok;
+}
+
+(:test)
+function testDaysSavedBeforeTheSplitAreRead(logger as Logger) as Boolean {
+    resetState();
+    var date = Schedule.dateString(0);
+    var old = sampleDay();
+    old["r"] = Schedule.routeKey();
+    old["t"] = NOW_SECONDS;
+    Storage.setValue("d:" + date, old as Dictionary<Storage.KeyType, Storage.ValueType>);
+    var trains = Departures.upcoming(true, 5, 0);
+    return check(logger, trains != null && trains.size() == 2, "old single-entry day still shows trains");
 }
