@@ -20,9 +20,6 @@ import Toybox.WatchUi;
 //! first, centered for round screens, per the UX guidelines for MIP screens.
 class TrainsView extends WatchUi.View {
     private const ROWS = 3; // the train to catch and two after it
-    // Trains within the walk to the station are skipped: fetch enough of them
-    // for a dense line (a train every 3 min, a 60 min walk).
-    private const MISSED_ROOM = 25;
     private const MARGIN = 6;
 
     private var _flipped as Boolean = false;
@@ -73,9 +70,8 @@ class TrainsView extends WatchUi.View {
         drawHeader(dc, cx, h, Departures.titles(toWork));
 
         var walk = Schedule.walkMinutes();
-        var all = Departures.upcoming(toWork, ROWS + MISSED_ROOM, now);
-        var trains = all != null ? Departures.forScreen(all, now, walk, ROWS) : null;
-        all = null;
+        // From now + walk: trains the user can no longer catch are not shown.
+        var trains = Departures.upcoming(toWork, ROWS, now + walk);
         var err = Departures.error();
         if (trains == null && err != null) {
             // Nothing to show: the reason gets the middle of the screen.
@@ -125,7 +121,8 @@ class TrainsView extends WatchUi.View {
             if (leave < 60) {
                 drawNumber(dc, cx, y, leave, color);
             } else {
-                drawText(dc, cx, y, [Departures.duration(leave, hourLabel(), minLabel())], [Graphics.FONT_MEDIUM], color);
+                drawText(dc, cx, y, [Departures.duration(leave, hourLabel(), minLabel())],
+                    [Graphics.FONT_MEDIUM, Graphics.FONT_SMALL, Graphics.FONT_TINY], color);
             }
         }
 
@@ -173,18 +170,26 @@ class TrainsView extends WatchUi.View {
     }
 
     //! A later train: "15:11 ЭКС" left of the middle, "9 мин" right of it.
+    //! On a narrow screen an express shows as a yellow time instead of the label.
     private function drawRow(dc as Dc, cx as Number, y as Number, train as Array, now as Number, walk as Number) as Void {
         var font = Graphics.FONT_SMALL;
         var gap = 8;
         var dep = train[Departures.DEP] as Number;
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - gap, y, font, Departures.hhmm(dep), Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
         var flags = train[Departures.FLAGS] as Number;
         var minutes = Departures.duration(Departures.leaveIn(dep, now, walk), hourLabel(), minLabel());
         var parts = [minutes, Graphics.COLOR_LT_GRAY] as Array;
+        var timeColor = Graphics.COLOR_LT_GRAY;
         if (flags != 0) {
-            parts.addAll([" " + expressLabel(flags), Graphics.COLOR_YELLOW]);
+            var label = " " + expressLabel(flags);
+            if (Draw.piecesWidth(dc, Graphics.FONT_TINY, parts) + dc.getTextWidthInPixels(label, Graphics.FONT_TINY)
+                <= Draw.chord(dc, y, MARGIN) / 2 - gap) {
+                parts.addAll([label, Graphics.COLOR_YELLOW]);
+            } else {
+                timeColor = Graphics.COLOR_YELLOW;
+            }
         }
+        dc.setColor(timeColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx - gap, y, font, Departures.hhmm(dep), Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
         Draw.pieces(dc, cx + gap, y, Graphics.FONT_TINY, parts, false);
     }
 
