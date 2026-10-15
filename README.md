@@ -1,18 +1,18 @@
 <div align="center">
 
-# Электрички на Garmin
+# Электрички на Garmin — Russian Trains
 
 **Ближайшая электричка — на запястье. Без телефона в руке.**
 
 Виджет для часов Garmin с расписанием МЦД и пригородных поездов Москвы:
 куда идёт поезд, когда он уходит и через сколько минут вам выходить из дома.
 
-[![proxy](https://github.com/andreiyurik/garmin-elektrichki/actions/workflows/proxy.yml/badge.svg)](https://github.com/andreiyurik/garmin-elektrichki/actions/workflows/proxy.yml)
+[![proxy](https://github.com/andreiyurik/garmin-russia-trains/actions/workflows/proxy.yml/badge.svg)](https://github.com/andreiyurik/garmin-russia-trains/actions/workflows/proxy.yml)
 ![Connect IQ](https://img.shields.io/badge/Garmin-Connect%20IQ-007CC3)
 ![fēnix 6](https://img.shields.io/badge/f%C4%93nix%206-supported-success)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 
-<img src="docs/hero.png" alt="Электрички на Garmin: гланс и главный экран" width="820">
+<img src="docs/hero.png" alt="Электрички (Russian Trains) на Garmin: гланс и главный экран" width="820">
 
 </div>
 

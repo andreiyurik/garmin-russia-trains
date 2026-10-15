@@ -1,5 +1,5 @@
 <resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
-    <string id="AppName">Elektrichki</string>
+    <string id="AppName">Russian Trains</string>
     <string id="HomeTitle">Home station</string>
     <string id="WorkTitle">Work station</string>
     <string id="StationPrompt">Station name, e.g. Odintsovo</string>
