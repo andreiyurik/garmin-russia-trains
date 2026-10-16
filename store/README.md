@@ -25,6 +25,15 @@ release-версию и копирует её в `GARMIN/APPS` подключё�
 
 Перед установкой из магазина удалите `GARMIN/APPS/Elektrichki.prg`.
 
+## Бета через Connect IQ Store
+
+`./release.sh beta` → `bin/release/Elektrichki-beta.iq`: то же приложение с
+отдельным `id` (`BETA_ID` в `release.sh`) и «Beta» в названии. Бета в Connect
+IQ навсегда остаётся бетой, поэтому `id` из манифеста для неё не годится.
+Загружать с галочкой «Beta App», обновлять — новым пакетом в ту же карточку
+беты. Её видит и ставит только владелец аккаунта: Connect IQ на телефоне →
+My Apps. Настройки — в Garmin Connect, как у опубликованного приложения.
+
 ## В Connect IQ Store
 
 1. Кабинет разработчика: <https://apps.garmin.com/developer/upload> — вход
@@ -32,7 +41,8 @@ release-версию и копирует её в `GARMIN/APPS` подключё�
 2. Пакет: `./release.sh iq` → `bin/release/Elektrichki.iq` (все устройства из
    манифеста, без отладочной информации).
 3. Загрузить пакет, указать версию (`1.0.0`), заполнить карточку текстами из
-   [`listing.md`](listing.md), скриншоты — `docs/screenshots/`, ссылка на
+   [`listing.md`](listing.md), картинки — `store/hero.jpg` (1440×720),
+   `store/icon.png` (обложка 500×500), `store/screen-*.jpg` (меньше 150 КБ), ссылка на
    политику конфиденциальности —
    <https://github.com/andreiyurik/garmin-russia-trains/blob/master/PRIVACY.md>.
 4. Отправить на проверку. До одобрения приложение скрыто, но его можно открыть
