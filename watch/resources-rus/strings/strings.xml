@@ -2,7 +2,7 @@
     <string id="AppName">Электрички</string>
     <string id="HomeTitle">Станция «Дом»</string>
     <string id="WorkTitle">Станция «Работа»</string>
-    <string id="StationPrompt">Название станции, например Одинцово. Если таких несколько, добавьте город через запятую: Заводская, Ижевск</string>
+    <string id="StationPrompt">Название станции, например Одинцово. Если таких несколько, добавьте город через запятую: Заводская, Ижевск. Данные предоставлены сервисом Яндекс.Расписания (rasp.yandex.ru)</string>
     <string id="SwitchTitle">Домой после (час)</string>
     <string id="SwitchPrompt">До этого часа показываются поезда из дома, после — домой</string>
     <string id="SwitchError">Введите час от 0 до 23</string>

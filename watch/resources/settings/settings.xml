@@ -1,9 +1,9 @@
 <resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <settings>
-        <setting propertyKey="@Properties.HomeStation" title="@Strings.HomeTitle" prompt="@Strings.StationPrompt">
+        <setting propertyKey="@Properties.HomeStation" title="@Strings.HomeTitle" prompt="@Strings.StationPrompt" helpUrl="https://rasp.yandex.ru/">
             <settingConfig type="alphaNumeric" maxLength="60" />
         </setting>
-        <setting propertyKey="@Properties.WorkStation" title="@Strings.WorkTitle" prompt="@Strings.StationPrompt">
+        <setting propertyKey="@Properties.WorkStation" title="@Strings.WorkTitle" prompt="@Strings.StationPrompt" helpUrl="https://rasp.yandex.ru/">
             <settingConfig type="alphaNumeric" maxLength="60" />
         </setting>
         <setting propertyKey="@Properties.SwitchHour" title="@Strings.SwitchTitle" prompt="@Strings.SwitchPrompt">

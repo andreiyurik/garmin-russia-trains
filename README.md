@@ -172,6 +172,13 @@ monkeyc -f watch/monkey.jungle -d fenix6 -o bin/app.prg -y ~/.Garmin/ConnectIQ/k
 connectiq && monkeydo bin/app.prg fenix6
 ```
 
+На свои часы и в магазин — [`store/README.md`](store/README.md):
+
+```sh
+./release.sh install fenix6 --home Одинцово --work Беговая   # release-сборка на часы по USB
+./release.sh iq                                              # пакет для Connect IQ Store
+```
+
 Прокси:
 
 ```sh
@@ -193,7 +200,8 @@ URL воркера задаётся свойством `ProxyUrl` в `watch/reso
 
 ## Данные
 
-Расписание предоставлено сервисом [Яндекс.Расписания](https://rasp.yandex.ru).
+Данные предоставлены сервисом [Яндекс.Расписания](https://rasp.yandex.ru).
+Личные данные приложение не собирает: [политика конфиденциальности](PRIVACY.md).
 
 ## Лицензия
 
