@@ -2,7 +2,7 @@
     <string id="AppName">Russian Trains</string>
     <string id="HomeTitle">Home station</string>
     <string id="WorkTitle">Work station</string>
-    <string id="StationPrompt">Station name, e.g. Odintsovo. If there are several, add the city after a comma: Zavodskaya, Izhevsk</string>
+    <string id="StationPrompt">Station name, e.g. Odintsovo. If there are several, add the city after a comma: Zavodskaya, Izhevsk. Data provided by Yandex Rasp (rasp.yandex.ru)</string>
     <string id="SwitchTitle">Go home after (hour)</string>
     <string id="SwitchPrompt">Before this hour the app shows trains from home, after it trains back home</string>
     <string id="SwitchError">Enter an hour from 0 to 23</string>
