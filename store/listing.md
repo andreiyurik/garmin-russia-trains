@@ -76,8 +76,8 @@ Privacy policy: https://github.com/andreiyurik/garmin-russia-trains/blob/master/
 
 ## Остальное
 
-- **Тип / категория:** Widget; категория — ближайшая к «Travel» или «Tools»
-  (выбрать из списка в форме).
-- **Скриншоты:** `docs/screenshots/glance.png`, `docs/screenshots/main.png`.
-- **Иконка (если форма просит):** `store/icon.png`, 500×500.
+- **Hero image:** `store/hero.jpg` (1440×720).
+- **Cover image:** `store/icon.png` (500×500, меньше 300 КБ).
+- **Screen images:** `store/screen-glance.jpg`, `store/screen-main.jpg` (меньше 150 КБ).
+- **Категория:** Travel (подкатегорий нет).
 - **Цена:** бесплатно.

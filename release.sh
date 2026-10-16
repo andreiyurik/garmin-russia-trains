@@ -2,6 +2,7 @@
 # Release builds of the watch app, into bin/release/.
 #
 #   ./release.sh iq                      store package for every device in the manifest
+#   ./release.sh beta                    the same as a separate beta app (own id, "Beta" in the name)
 #   ./release.sh prg <device> [options]  one device, to copy onto the watch by USB
 #   ./release.sh install <device> [options]
 #                                        the same, copied to GARMIN/APPS on a connected watch
@@ -19,6 +20,9 @@ SDK=${CIQ_SDK:-$(cat ~/.Garmin/ConnectIQ/current-sdk.cfg 2>/dev/null || true)}
 KEY=${CIQ_KEY:-~/.Garmin/ConnectIQ/keys/developer_key.der}
 OUT=bin/release
 NAME=Elektrichki
+# Beta builds use their own app id: a Connect IQ beta app can never be made
+# public, and the store app keeps the id in watch/manifest.xml.
+BETA_ID=0d5d4bf1c9d84d05b35b10d428e216bb
 DEVICES=$(grep -oP 'product id="\K[^"]+' watch/manifest.xml)
 
 usage() { sed -n '2,15s/^# \{0,1\}//p' "$0"; exit 1; }
@@ -36,12 +40,22 @@ set_default() { # <file> <id> <value>
     s{(<property id="\Q$ENV{ID}\E"[^>]*>)[^<]*(</property>)}{$1$v$2} or die "no property $ENV{ID}\n"' "$1"
 }
 
-build_iq() {
-  local iq=$OUT/$NAME.iq
-  "$SDK/bin/monkeyc" -e -r -f watch/monkey.jungle -o "$iq" -y "$KEY" -l 3 2>&1 | grep -v 'WARNING\|DEVICES BUILT' || true
+build_iq() { # <package> [source dir]
+  local iq=$OUT/$1.iq
+  "$SDK/bin/monkeyc" -e -r -f "${2:-watch}/monkey.jungle" -o "$iq" -y "$KEY" -l 3 2>&1 | grep -v 'WARNING\|DEVICES BUILT' || true
   [[ -s $iq ]] || die "Export failed"
-  echo "Store package: $iq"
+  echo "Package: $iq"
   echo "Upload it at https://apps.garmin.com/developer/upload (see store/README.md)."
+}
+
+build_beta() {
+  local src; src=$(mktemp -d)
+  trap 'rm -rf "$src"' RETURN
+  cp -r watch/. "$src"
+  ID="$BETA_ID" perl -pi -e 's/(<iq:application id=")\w+/$1$ENV{ID}/ or 1' "$src/manifest.xml"
+  grep -q "id=\"$BETA_ID\"" "$src/manifest.xml" || die "Could not set the beta id"
+  perl -pi -e 's{(<string id="AppName">[^<]*)}{$1 Beta}' "$src"/resources*/strings/strings.xml
+  build_iq "$NAME-beta" "$src"
 }
 
 build_prg() { # <device> [options]
@@ -78,7 +92,8 @@ find_apps_dir() {
 }
 
 case ${1:-} in
-  iq) build_iq ;;
+  iq) build_iq "$NAME" ;;
+  beta) build_beta ;;
   prg) [[ -n ${2:-} ]] || usage; build_prg "${@:2}" ;;
   install)
     [[ -n ${2:-} ]] || usage
